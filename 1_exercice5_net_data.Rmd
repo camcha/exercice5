@@ -1,0 +1,57 @@
+---
+title: "exercice5_net"
+author: "Camille"
+date: "14/04/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+#                                                   Début exercice 5
+## Mise en place de l'environnement de travail
+```{r}
+library(tidyverse)
+library(skimr)
+library(forecast)
+library(lubridate)
+
+hawai.ini <- read.csv2('data/hawai.csv')
+```
+
+## Exploration des données
+```{r}
+skim(hawai.ini)
+plot(x = hawai.ini$time, y = hawai.ini$CO2, type = 'l', xlab = 'Time', ylab = 'CO2 atmosphérique en ppm-volume', main = 'CO2 atmosphérique mesuré mensuellement à Hawaii')
+```
+
+## réordonner la colonne time
+```{r}
+library(data.table)
+hawai<- as.data.table(hawai.ini %>% select(time,CO2))
+setorder(hawai, time)
+skim(hawai)
+plot(x = hawai$time, y = hawai$CO2, type = 'l', xlab = 'Time', ylab = 'CO2 atmosphérique en ppm-volume', main = 'CO2 atmosphérique mesuré mensuellement à Hawaii')
+```
+
+## ménage des valeurs
+```{r}
+hawai.net <- hawai
+hawai.net <- hawai.net[!15]
+hawai.net.date <- data.frame(date= seq(from = as.Date('1958-02-01'), to = as.Date('2001-11-01'), by = 'months'))
+hawai.net.date$id <- as.numeric(seq(1,526,1))
+hawai.net.date <- hawai.net.date[hawai.net.date$id !=4,]
+hawai.net$date <- hawai.net.date$date
+hawai.net <- hawai.net %>% 
+  rename(CO2_ppm = CO2)
+write.csv(hawai.net, 'output/hawai_net.csv')
+```
+
+
+
+
+
+

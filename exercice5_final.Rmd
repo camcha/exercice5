@@ -1,0 +1,174 @@
+---
+title: "exercice5_final"
+author: "Camille"
+date: "25/03/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+#                                                   Début exercice 5
+## Suite au travail du format des données du document CSV créé précédemment...
+```{r}
+#les données sont alignées par colonne
+#les points sont convertis en virgules
+```
+
+## Exploration des données nettoyées
+```{r}
+library(tidyverse)
+library(skimr)
+library(forecast)
+library(lubridate)
+
+hawai <- read.csv2('output/hawai_net.csv')
+hawai$date <- as.Date(hawai$date)
+skim(hawai)
+```
+
+## Format time series
+```{r}
+hawai_ts<- hawai%>%
+  select(CO2_ppm) %>% 
+  ts(start = c(hawai$date[1] %>% year(),1),frequency = 12)
+plot(hawai_ts)
+```
+
+## Sélection des données Training et Test (1)
+```{r}
+525*0.7
+```
+
+## Sélection des données Training et Test (2)
+```{r}
+hawai$time[1]
+hawai$time[525]
+hawai$time[367]
+hawai$time[368]
+hawai$date[367]
+hawai$CO2_ppm[367]
+```
+
+## Sélection des données Training et Test (3)
+```{r}
+hawai_CO2 <- hawai_ts[,1]
+hawai_tr <- window(hawai_CO2, start = 1958.167, end = 1988.75)
+hawai_te <- window(hawai_CO2, start = 1988.833, end = 2001.917)
+```
+
+## Modèle ETS
+```{r}
+hawai_ets <- hawai_tr %>% ets()
+hawai_ets
+
+
+autoplot(hawai_ets)
+
+
+plot(forecast(hawai_ets))
+```
+
+1: png('images/composantes_ETS.png')
+2: png('mod_ETS1.png')
+
+## prédiction
+```{r}
+hawai_pred1 <- hawai_ets %>% forecast(h=155)
+
+
+hawai_pred1 %>% 
+  autoplot()
+
+
+hawai_pred1 %>% 
+  autoplot()+
+  xlim(c(1985,2002))+
+  ylim(c(345,410))
+```
+
+1: png('images/prediction_comp.png')
+2: png('images/prediction_zoom.png')
+
+## comparer prédiction et test
+```{r}
+accuracy( hawai_pred1,hawai_ts) #résultats: ME (mean error), RMSE (Root mean square error), MAE (mean absolute error), MASE (mean absolute scaled error)
+summary(hawai_ets) #AIC sert à comparer des modèles similaires (avec même sortie = AAA ex.) en changant seulement les paramètres (ex:alpha, beta...)
+```
+
+## vérifier les résidus
+```{r}
+# mettre ici png
+checkresiduals(hawai_ets)
+```
+
+png('residuals.png')
+
+
+## Régression 
+```{r}
+hawai_prediction <- data.frame('test' = hawai_te,
+                               'mean' = hawai_pred1$mean,
+                               'lower' = hawai_pred1$lower,
+                               'upper' = hawai_pred1$upper,
+                               'Temps' = hawai$date[371:525])
+
+reg1 <- lm(hawai_prediction$mean ~ hawai_prediction$test)
+
+
+ggplot(hawai_prediction, aes(x = test, y = mean))+
+  geom_point()+
+  geom_smooth(colour = 'blue', method = lm, fill = 'blue')
+
+
+plot(reg1$residuals)
+
+summary(reg1)
+```
+
+png('images/regression_ETS1.png')
+png('images/residus_ETS1.png')
+
+## test de tableau avec plot (test perso, ne pas faire pour le travail)
+```{r}
+par(mfrow = c(1, 2))
+png('images/regression_plot.png')
+plot(hawai_prediction$test, hawai_prediction$mean, 
+     main = 'Résultat ETS', 
+     xlab = 'Valeurs test',
+     ylab = 'valeurs prédites')
+abline(0,1)
+```
+
+png('images/regression_plot.png')
+
+
+## Prédiction en graphique
+```{r}
+plot(x = hawai_prediction$Temps,
+     y = hawai_prediction$test, 
+     ylim = c(349, 400),
+     col = 'red', type = 'l', lwd = 2, 
+     xlab = 'Temps', ylab = 'CO2 en ppm', main = 'Valeurs prédites et valeurs réelles de CO2')
+polygon(c(hawai_prediction$Temps, rev(hawai_prediction$Temps)), c(hawai_prediction$upper.80., rev(hawai_prediction$lower.80.)), col = 'lightgrey') # les rev() sont importants 
+lines(x = hawai_prediction$Temps,
+     y = hawai_prediction$test, col = 'red', lwd = 2)
+lines(x = hawai_prediction$Temps,
+     y = hawai_prediction$mean, col = 'black')
+lines(x = hawai_prediction$Temps,
+     y = hawai_prediction$upper.80., col = 'grey')
+lines(x = hawai_prediction$Temps,
+     y = hawai_prediction$lower.80., col = 'grey')
+legend('topleft', lty = 1, legend = c('valeurs test', 'pred.moyenne', 'pred.marges'), col = c('red', 'black', 'grey'))
+```
+
+
+png('images/graph_pred_final.png')
+
+
+
+
+
